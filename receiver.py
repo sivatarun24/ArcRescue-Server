@@ -8,6 +8,7 @@ from io import BytesIO
 from detector import detect_persons
 from multiplexer import project_pixel_to_ground
 from pointsToFeatureMap import push_person_location
+from pointsToFeatureMap_new import push_person_location_new
 
 os.makedirs("output", exist_ok=True)
 last_pushed_location = None
@@ -74,10 +75,13 @@ def handle_connection(conn, addr):
                         continue
 
                     metadata = msg["metadata"]
+                    url = msg["url"]
+                    flight_url = msg["flight_url"]
                     frame_id = msg.get("frame_id", 0)
                     image_height, image_width = frame.shape[:2]
 
                     # Draw and push detections
+                    num_persons = len(boxes)
                     for i, (x1, y1, x2, y2, conf) in enumerate(boxes):
                         # Use center of the bounding box
                         cx = int((x1 + x2) / 2)
@@ -120,7 +124,13 @@ def handle_connection(conn, addr):
                                     image_buffer = BytesIO(buffer.tobytes())
 
                                     # Push to ArcGIS Feature Layer
-                                    push_person_location(lat, lon, confidence=conf, image_data=image_buffer)
+                                    # push_person_location(lat, lon, confidence=conf, image_data=image_buffer)
+                                    push_person_location_new(url, 
+                                                             lat, lon, 
+                                                             num_people=num_persons,
+                                                             confidence=conf, 
+                                                             Time_stamp=metadata["TimeStamp"],
+                                                             image_data=image_buffer)
                                     last_pushed_location = (lat, lon)
                                 else:
                                     print(f"Skipping push for ({lat:.6f}, {lon:.6f}) due to distance threshold.")

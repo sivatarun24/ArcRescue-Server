@@ -1,152 +1,42 @@
-# import socket
-# import json
-# import time
-# import os
-# import cv2
-# import pandas as pd
-# import re
-
-# # ==== CONFIGURATION ====
-# data_folder = "data"
-# video_folder = "videos"
-# target_ip = "120.0.0.1"
-# target_port = 9999
-# output_resolution = (640, 384)
-# frames_per_second = 30
-# telemetries_per_second = 10
-# send_rate = 3
-# interval = telemetries_per_second // send_rate  # = 3
-
-# # ==== HELPERS ====
-# def extract_id(filename):
-#     match = re.search(r'\d+', filename)
-#     return match.group() if match else None
-
-# # ==== PAIR CSV AND VIDEO FILES ====
-# csv_files = [f for f in os.listdir(data_folder) if f.endswith(".csv")]
-# video_files = [f for f in os.listdir(video_folder) if f.endswith(".mp4")]
-
-# # Build mapping: {id: (csv_path, video_path)}
-# file_pairs = {}
-# for csv in csv_files:
-#     file_id = extract_id(csv)
-#     if not file_id:
-#         continue
-#     for video in video_files:
-#         if extract_id(video) == file_id:
-#             file_pairs[file_id] = (
-#                 os.path.join(data_folder, csv),
-#                 os.path.join(video_folder, video)
-#             )
-
-# # ==== MAIN LOOP ====
-# for file_id, (csv_path, video_path) in file_pairs.items():
-#     print(f"\nProcessing Pair: CSV={csv_path}, Video={video_path}")
-
-#     # Load and downsample telemetry
-#     df = pd.read_csv(csv_path)
-#     sampled_df = df.iloc[::interval].reset_index(drop=True)
-
-#     cap = cv2.VideoCapture(video_path)
-#     if not cap.isOpened():
-#         print(f"Failed to open video: {video_path}")
-#         continue
-
-#     sock = socket.socket()
-#     sock.connect((target_ip, target_port))
-
-#     frame_count = 0
-#     frame_index = 0
-
-#     while cap.isOpened() and frame_index < len(sampled_df):
-#         ret, frame = cap.read()
-#         if not ret:
-#             break
-
-#         if frame_count % (frames_per_second // send_rate) == 0:
-#             telemetry = sampled_df.iloc[frame_index].to_dict()
-
-#             width = int(telemetry.get("width", output_resolution[0]))
-#             height = int(telemetry.get("height", output_resolution[1]))
-#             resized_frame = cv2.resize(frame, (width, height))
-
-#             _, buffer = cv2.imencode(".jpg", resized_frame)
-#             hex_image = buffer.tobytes().hex()
-
-#             msg = {
-#                 "type": "frame",
-#                 "frame_id": frame_index,
-#                 "image": hex_image,
-#                 "metadata": {
-#                     "latitude": telemetry["latitude"],
-#                     "longitude": telemetry["longitude"],
-#                     "altitude": telemetry["altitude"],
-#                     "yaw": telemetry["yaw"],
-#                     "pitch": telemetry["pitch"],
-#                     "roll": telemetry["roll"],
-#                     "fov": telemetry["fov"],
-#                     "resolution": [height, width]
-#                 }
-#             }
-
-#             sock.sendall((json.dumps(msg) + '\n').encode())
-#             print(f"Sent frame {frame_index} from {video_path}")
-#             frame_index += 1
-#             time.sleep(1.0 / send_rate)
-
-#         frame_count += 1
-
-#     cap.release()
-#     sock.close()
-#     print(f"Finished sending data for {csv_path}")
-
-
 import socket
 import json
 import time
-import os
 import cv2
 import pandas as pd
-import re
+from static_data import DATA_SOURCES
+from flightPath import add_flight_path_to_layer
 
 # ==== CONFIGURATION ====
-data_folder = "data"
-video_folder = "videos"
-target_ip = "127.0.0.1"
+target_ip = "198.102.58.186"
 target_port = 9999
-default_resolution = (1920, 1080) # 1920, 1080
+default_resolution = (1920, 1080)
 frames_per_second = 30
 telemetries_per_second = 10
 send_rate = 3
 interval = telemetries_per_second // send_rate
 
-def extract_id(filename):
-    match = re.search(r'\d+', filename)
-    return match.group() if match else None
+# ==== LOOP THROUGH ALL MISSIONS ====
+for mission_id, mission in DATA_SOURCES.items():
+    print(f"\nStarting mission: {mission_id}")
 
-# ==== PAIR FILES ====
-csv_files = [f for f in os.listdir(data_folder) if f.endswith(".csv")]
-video_files = [f for f in os.listdir(video_folder) if f.endswith(".MP4")]
+    csv_path = mission["data_csv"]
+    video_path = mission["video"]
+    feature_url = mission["url"]
+    flight_url = mission["drone_url"]
 
-print(f"Found {len(csv_files)} CSV files and {len(video_files)} video files.")
+    print(f" - CSV:   {csv_path}")
+    print(f" - Video: {video_path}")
 
-file_pairs = {}
-for csv in csv_files:
-    file_id = extract_id(csv)
-    if not file_id:
+    try:
+        df = pd.read_csv(csv_path)
+    except Exception as e:
+        print(f"Failed to load CSV: {e}")
         continue
-    for video in video_files:
-        if extract_id(video) == file_id:
-            file_pairs[file_id] = (
-                os.path.join(data_folder, csv),
-                os.path.join(video_folder, video)
-            )
 
-# ==== SEND LOOP ====
-for file_id, (csv_path, video_path) in file_pairs.items():
-    print(f"\nProcessing: CSV={csv_path}, Video={video_path}")
+    # Extract all rows as (lat, lon) tuples
+    coordinates_latlon = list(zip(df["SensorLatitude"], df["SensorLongitude"]))
+    add_flight_path_to_layer(flight_url, coordinates_latlon, [0, 0, 255, 255])  # Example with empty path and red color
 
-    df = pd.read_csv(csv_path)
     sampled_df = df.iloc[::interval].reset_index(drop=True)
 
     cap = cv2.VideoCapture(video_path)
@@ -155,7 +45,12 @@ for file_id, (csv_path, video_path) in file_pairs.items():
         continue
 
     sock = socket.socket()
-    sock.connect((target_ip, target_port))
+    try:
+        sock.connect((target_ip, target_port))
+    except Exception as e:
+        print(f"Socket connection failed: {e}")
+        cap.release()
+        continue
 
     frame_count = 0
     frame_index = 0
@@ -168,7 +63,6 @@ for file_id, (csv_path, video_path) in file_pairs.items():
         if frame_count % (frames_per_second // send_rate) == 0:
             telemetry = sampled_df.iloc[frame_index].to_dict()
 
-            # Dynamically check for resolution
             width = int(telemetry.get("width", default_resolution[0]))
             height = int(telemetry.get("height", default_resolution[1]))
             resized_frame = cv2.resize(frame, (width, height))
@@ -180,11 +74,18 @@ for file_id, (csv_path, video_path) in file_pairs.items():
                 "type": "frame",
                 "frame_id": frame_index,
                 "image": hex_image,
-                "metadata": telemetry  # use entire row as metadata
+                "metadata": telemetry,
+                "url": feature_url,
+                "flight_url": flight_url
             }
 
-            sock.sendall((json.dumps(msg) + '\n').encode())
-            print(f"Sent frame {frame_index}")
+            try:
+                sock.sendall((json.dumps(msg) + '\n').encode())
+                print(f"Sent frame {frame_index} from {mission_id}")
+            except Exception as e:
+                print(f"Failed to send frame: {e}")
+                break
+
             frame_index += 1
             time.sleep(1.0 / send_rate)
 
@@ -192,5 +93,4 @@ for file_id, (csv_path, video_path) in file_pairs.items():
 
     cap.release()
     sock.close()
-    print(f"Finished sending for {file_id}")
-
+    print(f"Finished mission: {mission_id}")
