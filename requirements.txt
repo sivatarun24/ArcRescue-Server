@@ -1,7 +1,9 @@
 opencv-python
-numpy
+numpy==1.24.4
 torch
 torchvision
 ultralytics
 djitellopy
 geopy
+timm
+arcgis
