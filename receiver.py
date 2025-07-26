@@ -3,14 +3,27 @@ import json
 import cv2
 import numpy as np
 import os
+import math
 from io import BytesIO
 from detector import detect_persons
 from multiplexer import project_pixel_to_ground
 from pointsToFeatureMap import push_person_location
 
 os.makedirs("output", exist_ok=True)
+last_pushed_location = None
+DISTANCE_THRESHOLD = 3 # meters
+
+def haversine(lat1, lon1, lat2, lon2):
+    R = 6371000
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2)**2
+    print(f"Haversine calculation: lat1={lat1}, lon1={lon1}, lat2={lat2}, lon2={lon2}, a={a}")
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 def handle_connection(conn, addr):
+    global last_pushed_location
     print(f"Connected by {addr}")
     buffer = ""
 
@@ -97,12 +110,20 @@ def handle_connection(conn, addr):
                         if lat and lon:
                             print(f"Person {i+1}: Confidence {conf*100:.2f}% → GPS: ({lat:.6f}, {lon:.6f})")
                             if conf > 0.3:
-                                # Encode frame in memory
-                                _, buffer = cv2.imencode('.jpg', frame)
-                                image_buffer = BytesIO(buffer.tobytes())
+                                dist_ok = (
+                                    last_pushed_location is None or
+                                    haversine(lat, lon, *last_pushed_location) > DISTANCE_THRESHOLD
+                                )
+                                if dist_ok:
+                                    # Encode frame in memory
+                                    _, buffer = cv2.imencode('.jpg', frame)
+                                    image_buffer = BytesIO(buffer.tobytes())
 
-                                # Push to ArcGIS Feature Layer
-                                push_person_location(lat, lon, confidence=conf, image_data=image_buffer)
+                                    # Push to ArcGIS Feature Layer
+                                    push_person_location(lat, lon, confidence=conf, image_data=image_buffer)
+                                    last_pushed_location = (lat, lon)
+                                else:
+                                    print(f"Skipping push for ({lat:.6f}, {lon:.6f}) due to distance threshold.")
 
                     # Save frame locally
                     cv2.imwrite(f"output/frame_{frame_id}.jpg", frame)
