@@ -33,7 +33,7 @@ def handle_connection(conn, addr):
 
                 try:
                     msg = json.loads(line)
-                    print(f"Received message: {msg}")
+                    # print(f"Received message: {msg}")
 
                     if msg.get("type") != "frame" or "image" not in msg or "metadata" not in msg:
                         print("Invalid message format, skipping...")
@@ -96,13 +96,13 @@ def handle_connection(conn, addr):
 
                         if lat and lon:
                             print(f"Person {i+1}: Confidence {conf*100:.2f}% → GPS: ({lat:.6f}, {lon:.6f})")
+                            if conf > 0.3:
+                                # Encode frame in memory
+                                _, buffer = cv2.imencode('.jpg', frame)
+                                image_buffer = BytesIO(buffer.tobytes())
 
-                            # Encode frame in memory
-                            _, buffer = cv2.imencode('.jpg', frame)
-                            image_buffer = BytesIO(buffer.tobytes())
-
-                            # Push to ArcGIS Feature Layer
-                            push_person_location(lat, lon, confidence=conf, image_data=image_buffer)
+                                # Push to ArcGIS Feature Layer
+                                push_person_location(lat, lon, confidence=conf, image_data=image_buffer)
 
                     # Save frame locally
                     cv2.imwrite(f"output/frame_{frame_id}.jpg", frame)
