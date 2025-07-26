@@ -3,16 +3,17 @@ import json
 import cv2
 import numpy as np
 import os
+from io import BytesIO
 from detector import detect_persons
-# from coordinate_mapper import map_to_coordinates
-# from push_location import push_person_location
+from multiplexer import project_pixel_to_ground
+from pointsToFeatureMap import push_person_location
 
 os.makedirs("output", exist_ok=True)
 
 def handle_connection(conn, addr):
     print(f"Connected by {addr}")
     buffer = ""
-    
+
     try:
         while True:
             data = conn.recv(65536)
@@ -20,13 +21,19 @@ def handle_connection(conn, addr):
                 print(f"Connection closed by {addr}")
                 break
 
-            buffer += data.decode(errors="ignore")
+            try:
+                buffer += data.decode(errors="ignore")
+            except Exception as e:
+                print("Buffer decode error:", e)
+                buffer = ""
+                continue
 
             while '\n' in buffer:
                 line, buffer = buffer.split('\n', 1)
 
                 try:
                     msg = json.loads(line)
+                    print(f"Received message: {msg}")
 
                     if msg.get("type") != "frame" or "image" not in msg or "metadata" not in msg:
                         print("Invalid message format, skipping...")
@@ -46,47 +53,61 @@ def handle_connection(conn, addr):
                     # Person detection
                     try:
                         boxes = detect_persons(frame)
+                        if not boxes:
+                            print("No persons detected in this frame.")
+                            continue
                     except Exception as e:
                         print("Detection error:", e)
                         continue
 
-                    # Coordinate mapping
-                    try:
-                        coords = map_to_coordinates([box[:4] for box in boxes], msg["metadata"])
-                    except Exception as e:
-                        print("Coordinate mapping error:", e)
-                        coords = [None] * len(boxes)
+                    metadata = msg["metadata"]
+                    frame_id = msg.get("frame_id", 0)
+                    image_height, image_width = frame.shape[:2]
 
-                    # Save full frame
-                    frame_id = msg.get("frame_id", 0)  # ✅ Moved up
-
-                    # Draw detections
+                    # Draw and push detections
                     for i, (x1, y1, x2, y2, conf) in enumerate(boxes):
-                        point = coords[i]
-                        lat = point.latitude
-                        lon = point.longitude
+                        # Use center of the bounding box
+                        cx = int((x1 + x2) / 2)
+                        cy = int((y1 + y2) / 2)
 
+                        try:
+                            lon, lat = project_pixel_to_ground(
+                                (cx, cy),
+                                image_width=image_width,
+                                image_height=image_height,
+                                sensor_lat=metadata["SensorLatitude"],
+                                sensor_lon=metadata["SensorLongitude"],
+                                sensor_relative_altitude=metadata["SensorTrueAltitude"],
+                                takeoff_altitude=metadata["TakeoffLocationAltitude"],
+                                sensor_relative_elevation_angle=metadata["SensorRelativeElevationAngle"],
+                                heading=metadata["PlatformHeadingAngle"],
+                                fov_horizontal=metadata["SensorHorizontalFieldOfView"],
+                                fov_vertical=metadata["SensorVerticalFieldOfView"] * (image_height / image_width)
+                            )
+                        except Exception as e:
+                            print(f"GPS projection error: {e}")
+                            lon, lat = None, None
+
+                        # Draw bounding box and label
                         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-
                         label = f"{conf * 100:.1f}%"
                         cv2.putText(frame, label, (x1, y1 - 10),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 0), 1)
 
-                        # Print to console
-                        print(f"Person {i+1}:")
-                        print(f"  Confidence: {conf * 100:.2f}%")
-                        print(f"  GPS: ({lat:.6f}, {lon:.6f})")
+                        if lat and lon:
+                            print(f"Person {i+1}: Confidence {conf*100:.2f}% → GPS: ({lat:.6f}, {lon:.6f})")
 
-                        # Push to ArcGIS with frame path
-                        image_path = f"output/frame_{frame_id}.jpg"
-                        push_person_location(lat, lon, image_path=image_path, name=f"Person {i+1}", status="Detected")
+                            # Encode frame in memory
+                            _, buffer = cv2.imencode('.jpg', frame)
+                            image_buffer = BytesIO(buffer.tobytes())
 
+                            # Push to ArcGIS Feature Layer
+                            push_person_location(lat, lon, confidence=conf, image_data=image_buffer)
 
-                    # Save full frame
-                    frame_id = msg.get("frame_id", 0)
+                    # Save frame locally
                     cv2.imwrite(f"output/frame_{frame_id}.jpg", frame)
 
-                    # Display
+                    # Show live
                     cv2.imshow("Drone Frame", frame)
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         print("Receiver manually interrupted.")
@@ -102,7 +123,6 @@ def handle_connection(conn, addr):
         print(f"Connection from {addr} closed.")
         cv2.destroyAllWindows()
 
-# Main server loop — accepts new clients indefinitely
 def run_receiver():
     sock = socket.socket()
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
