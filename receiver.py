@@ -124,13 +124,12 @@ def handle_connection(conn, addr):
                                     image_buffer = BytesIO(buffer.tobytes())
 
                                     # Push to ArcGIS Feature Layer
-                                    # push_person_location(lat, lon, confidence=conf, image_data=image_buffer)
-                                    push_person_location_new(url, 
-                                                             lat, lon, 
-                                                             num_people=num_persons,
-                                                             confidence=conf, 
-                                                             Time_stamp=metadata["TimeStamp"],
-                                                             image_data=image_buffer)
+                                    # push_person_location_new(url, 
+                                    #                          lat, lon, 
+                                    #                          num_people=num_persons,
+                                    #                          confidence=conf, 
+                                    #                          Time_stamp=metadata["TimeStamp"],
+                                    #                          image_data=image_buffer)
                                     last_pushed_location = (lat, lon)
                                 else:
                                     print(f"Skipping push for ({lat:.6f}, {lon:.6f}) due to distance threshold.")
