@@ -5,6 +5,7 @@ import cv2
 import pandas as pd
 from static_data import DATA_SOURCES
 from flightPath import add_flight_path_to_layer
+from fovToFeatureMap import compute_and_push_polygons
 
 def run_mission_by_name(mission_id: str):
     # ==== CONFIGURATION ====
@@ -27,6 +28,7 @@ def run_mission_by_name(mission_id: str):
     video_path = mission["video"]
     feature_url = mission["url"]
     flight_url = mission["drone_url"]
+    fov_url = mission["fov_url"]
 
     print(f" - CSV:   {csv_path}")
     print(f" - Video: {video_path}")
@@ -41,6 +43,7 @@ def run_mission_by_name(mission_id: str):
     # Optional: Upload flight path to map (commented out)
     coordinates_latlon = list(zip(df["SensorLatitude"], df["SensorLongitude"]))
     # add_flight_path_to_layer(flight_url, coordinates_latlon, [0, 0, 255, 255])  # Red color line
+    # compute_and_push_polygons(fov_url, df[:5])
 
     sampled_df = df.iloc[::interval].reset_index(drop=True)
 
