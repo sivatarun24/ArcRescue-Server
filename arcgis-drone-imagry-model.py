@@ -17,7 +17,7 @@ MODEL_ITEM_ID = "42bfd5392d834c83aa21193450888a9e"
 # # AUTHENTICATE TO ARCGIS ONLINE
 # # ----------------------------
 print("Connecting to ArcGIS Online...")
-gis = GIS("https://intern-hackathon.maps.arcgis.com", "sambala_intern_hackathon", "Thisispizza@2477")
+gis = GIS("https://intern-hackathon.maps.arcgis.com", "sambala_intern_hackathon", "<your_password_here>")
 
 # ----------------------------
 # DOWNLOAD MODEL
