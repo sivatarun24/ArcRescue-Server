@@ -10,7 +10,7 @@ import pytz
 
 def push_person_location_new(feature_layer_url, lat, lon, num_people, confidence, Time_stamp, image_data=None):
     # Initialize GIS instance (credentials are hardcoded)
-    gis = GIS("https://intern-hackathon.maps.arcgis.com", "pvan_intern_hackathon", "Peter242003$Abc123$$$")
+    gis = GIS("https://intern-hackathon.maps.arcgis.com", "sambala_intern_hackathon", "Thisispizza@2477")
     layer = FeatureLayer(feature_layer_url)
     
     custom_image_path = "https://intern-hackathon.maps.arcgis.com/sharing/rest/content/items/641c8b31ef784fb3be125fbe21d8b9b8/data"
@@ -47,7 +47,6 @@ def push_person_location_new(feature_layer_url, lat, lon, num_people, confidence
             "Number_People": num_people,
             "Confidence": confidence,
             "Time_Stamp": localized_time.isoformat(),  # Ensure Time_stamp is in ISO format
-            # "Time_Stamp": datetime.utcnow().isoformat()  # Can also use the Time_stamp param if desired
         }
     }
 
