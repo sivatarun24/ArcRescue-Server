@@ -10,7 +10,7 @@ import pytz
 
 def push_person_location_new(feature_layer_url, lat, lon, num_people, confidence, Time_stamp, image_data=None):
     # Initialize GIS instance (credentials are hardcoded)
-    gis = GIS("https://intern-hackathon.maps.arcgis.com", "sambala_intern_hackathon", "Thisispizza@2477")
+    gis = GIS("https://intern-hackathon.maps.arcgis.com", "sambala_intern_hackathon", "<your_password_here>")
     layer = FeatureLayer(feature_layer_url)
     
     custom_image_path = "https://intern-hackathon.maps.arcgis.com/sharing/rest/content/items/641c8b31ef784fb3be125fbe21d8b9b8/data"

@@ -4,7 +4,7 @@ from datetime import datetime
 
 def add_flight_path_to_layer(feature_layer_url, coordinates_latlon, color):
     # Connect to GIS
-    gis = GIS("https://intern-hackathon.maps.arcgis.com", "kbernardin_intern_hackathon", "TonytheTiger57&2")
+    gis = GIS("https://intern-hackathon.maps.arcgis.com", "sambala_intern_hackathon", "<your_password_here>")
     layer = FeatureLayer(feature_layer_url)
 
     # Define renderer with the provided color

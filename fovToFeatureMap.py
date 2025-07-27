@@ -55,7 +55,7 @@ def fovToFeatureLayer_compute_polygon(pixel_coord_top_left, pixel_coord_top_righ
 
 def compute_and_push_polygons(feature_layer_url, df):
     # Initialize GIS instance (credentials are hardcoded)
-    gis = GIS("https://intern-hackathon.maps.arcgis.com", "pvan_intern_hackathon", "Peter242003$Abc123$$$")
+    gis = GIS("https://intern-hackathon.maps.arcgis.com", "sambala_intern_hackathon", "<your_password_here>")
     layer = FeatureLayer(feature_layer_url)
 
     # Example pixel coordinates for each corner of the frame (a list of multiple sets of pixel coords)
