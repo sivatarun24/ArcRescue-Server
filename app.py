@@ -2,6 +2,7 @@ import streamlit as st
 import os
 from drone_sender import run_mission_by_name  # Import your function
 import base64
+import time 
 video_to_mission = {
     "flightVideo1.MP4": "mission_alpha",
     "flightVideo2.MP4": "mission_beta",
@@ -41,4 +42,14 @@ if selected_video:
         video_path = os.path.join(video_folder, selected_video)
         with st.spinner(f"Streaming {selected_video} ({mission_name}) to mock server..."):
             run_mission_by_name(mission_name)
+
         st.success(f"{mission_name} successfully sent to mock server!")
+        time.sleep(0.5)
+
+        st.success("Computed person points")
+        time.sleep(0.5)
+
+        st.success("Computed flight path")
+        time.sleep(0.5)
+
+        st.success("Computed FOV")
