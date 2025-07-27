@@ -21,7 +21,7 @@
 from arcgis.gis import GIS
 from arcgis.features import FeatureLayer
 
-gis = GIS("https://intern-hackathon.maps.arcgis.com", "sambala_intern_hackathon", "Thisispizza@2477")
+gis = GIS("https://intern-hackathon.maps.arcgis.com", "sambala_intern_hackathon", "<your_password_here>")
 feature_layer_url = "https://services8.arcgis.com/LLNIdHmmdjO2qQ5q/arcgis/rest/services/Detected_flytwo/FeatureServer/0"
 layer = FeatureLayer(feature_layer_url)
 
